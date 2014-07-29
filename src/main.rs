@@ -1,7 +1,7 @@
 extern crate serialize;
 
 use serialize::{json, Decodable, Decoder};
-use serialize::json::{DecoderError, ExpectedError};
+use serialize::json::{DecoderError, ExpectedError, MissingFieldError};
 
 #[deriving(Show, Decodable)]
 enum OpCode {
@@ -34,14 +34,15 @@ impl OptionalInstr {
         std::default::Default::default()
     }
 
-    fn unwrap(self) -> Instr {
+    fn as_instr(self) -> Option<Instr> {
         match self {
-            OptionalInstr { op: Some(op), a: Some(a), b: Some(b), c: Some(c), d: None }
-                => OpABC(op, a, b, c),
-            OptionalInstr { op: Some(op), a: Some(a), b: None, c: None, d: Some(d) }
-                => OpAD(op, a, d),
-            _
-                => fail!("Failed to unwrap instruction")
+            OptionalInstr {
+                op: Some(op), a: Some(a), b: Some(b), c: Some(c), d: None
+            } => Some(OpABC(op, a, b, c)),
+            OptionalInstr {
+                op: Some(op), a: Some(a), d: Some(d), b: None, c: None
+            } => Some(OpAD(op, a, d)),
+            _ => None
         }
     }
 }
@@ -49,21 +50,24 @@ impl OptionalInstr {
 impl Decodable<json::Decoder, DecoderError> for Instr {
     fn decode(dec: &mut json::Decoder) -> Result<Instr, DecoderError> {   
         dec.read_map(|dec, len| {
-            let mut instr = OptionalInstr::new();
+            let mut opt_instr = OptionalInstr::new();
 
             for i in range(0u, len) {
                 let key : String = try!(Decodable::decode(dec));
                 match key.as_slice() {
-                    "op" => instr.op = Decodable::decode(dec).ok(),
-                    "a"  => instr.a  = Decodable::decode(dec).ok(),
-                    "b"  => instr.b  = Decodable::decode(dec).ok(),
-                    "c"  => instr.c  = Decodable::decode(dec).ok(),
-                    "d"  => instr.d  = Decodable::decode(dec).ok(),
+                    "op" => opt_instr.op = Decodable::decode(dec).ok(),
+                    "a"  => opt_instr.a  = Decodable::decode(dec).ok(),
+                    "b"  => opt_instr.b  = Decodable::decode(dec).ok(),
+                    "c"  => opt_instr.c  = Decodable::decode(dec).ok(),
+                    "d"  => opt_instr.d  = Decodable::decode(dec).ok(),
                      _   => return Err(ExpectedError("op|a|b|c|d".to_string(), key))
                 }
             }
 
-            Ok(instr.unwrap())
+            match opt_instr.as_instr() {
+                Some(instr) => Ok(instr),
+                None => Err(MissingFieldError("op|a|b|c|d".to_string()))
+            }
         })
     }
 }
