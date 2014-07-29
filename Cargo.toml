@@ -1,0 +1,5 @@
+[package]
+
+name = "clojit-vm"
+version = "0.1.0"
+authors = [ "nickik@gmx.ch", "gandro@gmx.net" ]
