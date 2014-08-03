@@ -5,6 +5,8 @@ use std::os;
 
 use serialize::{json, Decoder, Decodable};
 
+mod eval;
+
 struct VmState {
     pc     : uint,
     slot   : SlotFrame,
@@ -130,51 +132,24 @@ impl IndexMut<uint, Slot> for SlotFrame {
     }
 }
 
-#[inline]
-fn eval_addvv(vm : &mut VmState, dst: ArgA, op1: ArgB, op2: ArgC) {
-    let slot1 = vm.slot[op1 as uint];
-    let slot2 = vm.slot[op2 as uint];
-
-    let res = match (slot1, slot2) {
-        (Integer(val1), Integer(val2)) => Integer(val1 + val2),
-        (Float(val1), Float(val2))     => Float(val1 + val2),
-        (Integer(val1), Float(val2))   => Float(val1 as f64 + val2),
-        (Float(val1), Integer(val2))   => Float(val1 + val2 as f64),
-        _ => fail!("Invalid operand types for ADDVV")
-    };
-
-    vm.slot[dst as uint] = res;
-    vm.pc += 1;
+enum JumpFlag {
+    NextInstr,
+    Jump(uint)
 }
 
-#[inline]
-fn eval_cint(vm : &mut VmState, dst: ArgA, idx: ArgD) {
-    let val = Integer(vm.cint[idx as uint]);
-    vm.slot[dst as uint] = val;
-    vm.pc += 1;
-}
-
-#[inline]
-fn eval_cfloat(vm : &mut VmState, dst: ArgA, idx: ArgD) {
-    let val = Float(vm.cfloat[idx as uint]);
-    vm.slot[dst as uint] = val;
-    vm.pc += 1;
-}
-
-#[inline]
-fn eval_mov(vm : &mut VmState, dst: ArgA, src: ArgD) {
-    vm.slot[dst as uint] = vm.slot[src as uint];
-    vm.pc += 1;
-}
-
-fn dispatch(vm : &mut VmState, instr : Instr) {
+fn dispatch(vm : &mut VmState, instr : Instr) -> JumpFlag {
     match instr {
-        OpAD(CINT, a, d)        => eval_cint(vm, a, d),
-        OpAD(CFLOAT, a, d)      => eval_cfloat(vm, a, d),
+        OpAD(CINT, a, d)        => eval::cint(vm, a, d),
+        OpAD(CFLOAT, a, d)      => eval::cfloat(vm, a, d),
+        OpAD(CBOOL, a, d)       => eval::cbool(vm, a, d),
 
-        OpABC(ADDVV, a, b, c)   => eval_addvv(vm, a, b, c),
+        OpABC(ADDVV, a, b, c)   => eval::addvv(vm, a, b, c),
 
-        OpAD(MOV, a, d)         => eval_mov(vm, a, d),
+        OpAD(MOV, a, d)         => eval::mov(vm, a, d),
+
+        OpAD(JUMP, _, d)     => eval::jump(vm, d),
+        OpAD(JUMPF, a, d)    => eval::jumpf(vm, a, d),
+        OpAD(JUMPT, a, d)    => eval::jumpt(vm, a, d),
 
         _ => unimplemented!()
     }
@@ -209,7 +184,10 @@ fn main() {
 
     while vm.pc < vm.instr.len() {
         let instr = vm.instr[vm.pc];
-        dispatch(&mut vm, instr);
+        match dispatch(&mut vm, instr) {
+            NextInstr  => vm.pc += 1,
+            Jump(addr) => vm.pc += addr
+        }
     }
 
     println!("{}", vm.slot[0]);
