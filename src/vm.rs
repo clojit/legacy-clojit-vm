@@ -1,10 +1,13 @@
 use std::collections::HashMap;
+use std::default::Default;
 
-pub type Keyword = String;
+use fetch::Fetch;
+use decode::Decode;
+use execute::Execute;
 
 pub struct Instr(pub u32);
 
-#[deriving(Show, FromPrimitive, Decodable)]
+#[deriving(Show, PartialEq, FromPrimitive, Decodable)]
 pub enum OpCode {
     CSTR, CKEY, CINT, CFLOAT, CBOOL, CNIL, CFUNC,
     NSSETS, NSGETS,
@@ -18,24 +21,27 @@ pub enum OpCode {
     SETFREEVAR, GETFREEVAR,
     LOOP, BULKMOV,
     NEWARRAY, GETARRAY, SETARRAY,
-    FUNCF, FUNCV
+    FUNCF, FUNCV,
+    EXIT
 }
 
+pub enum InstrType {
+    TyABC,
+    TyAD
+}
+
+pub type Keyword = String;
+
+#[deriving(Show, Clone)]
 pub enum Slot {
     Nil,
-    Integer(i64),
+    Int(i64),
     Float(f64),
-    Boolean(bool),
-    String(String),
-    Keyword(Keyword)
+    Bool(bool),
+    Str(String),
+    Key(Keyword),
+    Func(uint),
 }
-
-struct Frame {
-    ret  : InstrPtr,
-    base : uint,
-}
-
-type InstrPtr = (uint, uint);
 
 type CFunc  = HashMap<uint, Vec<Instr>>;
 type CInt   = Vec<i64>;
@@ -43,37 +49,53 @@ type CFloat = Vec<f64>;
 type CStr   = Vec<String>;
 type CKey   = Vec<Keyword>;
 
-pub struct Vm {
-    ip : InstrPtr,
-    slots  : Vec<Slot>,
-    frames : Vec<Frame>,
-
-    cfunc  : CFunc,
-    cint   : CInt,
-    cfloat : CFloat,
-    cstr   : CStr,
-    ckey   : CKey
+pub struct VmContext {
+    pub ip : uint,
+    pub func : uint,
+    pub base : uint,
 }
 
+pub struct VmData {
+    pub cfunc  : CFunc,
+    pub cint   : CInt,
+    pub cfloat : CFloat,
+    pub cstr   : CStr,
+    pub ckey   : CKey
+}
+
+pub type VmSlots = Vec<Slot>;
+pub type VmStack = Vec<VmContext>;
+
+pub struct Vm {
+    pub ctx   : VmContext,
+    pub stack : VmStack,
+    pub slot  : VmSlots,
+    pub data  : VmData,
+}
+
+static VM_MAX_SLOTS : uint = 64000u;
 
 impl Vm {
-    pub fn new(cfunc: CFunc, cint: CInt, cfloat:CFloat, cstr:CStr, ckey:CKey) -> Vm {
+    pub fn new(data: VmData) -> Vm
+    {
         Vm {
-            ip     : (0, 0),
-            slots  : vec!(),
-            frames : vec!(),
-            cfunc  : cfunc,
-            cint   : cint,
-            cfloat : cfloat,
-            cstr   : cstr,
-            ckey   : ckey
+            ctx   : VmContext { ip : 0, func : 0, base : 0 },
+            slot  : Vec::from_fn(VM_MAX_SLOTS, |i| Nil),
+            stack : vec![],
+            data  : data
         }
     }
-}
 
-pub enum InstrType {
-    TyABC,
-    TyAD
+    pub fn start(&mut self) {
+        let mut instr = self.fetch(0);
+
+        while instr.decode() != EXIT {
+            let next = instr.execute(self);
+            println!("{}: {}", instr, self.slot[..10]);
+
+            instr = next;
+        }
+    }
 }
 
 impl OpCode {
@@ -92,8 +114,15 @@ impl OpCode {
             JUMP|JUMPF|JUMPT|
             CALL|RET|
             FNEW|
-            FUNCF|FUNCV
+            FUNCF|FUNCV|
+            EXIT
                 => TyAD,
         }
+    }
+}
+
+impl Default for Slot {
+    fn default() -> Slot {
+        Nil
     }
 }

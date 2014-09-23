@@ -1,14 +1,21 @@
 use std::mem;
-use std::fmt;
-use std::fmt::Show;
-use std::num::FromPrimitive;
 
 use vm;
+use vm::Vm;
+use vm::VmSlots;
+
+use vm::Slot;
 use vm::Instr;
 use vm::OpCode;
 
 pub trait Decode {
     fn decode(self) -> OpCode;
+    fn as_abc(self) -> OpABC;
+    fn as_ad(self) -> OpAD;
+}
+
+pub trait Encode {
+    fn as_instr(self) -> Instr;
 }
 
 #[repr(packed)]
@@ -23,52 +30,54 @@ pub struct OpAD {
     pub a: u8, pub op: u8
 }
 
-impl OpABC {
-    pub fn from_instr(instr: Instr) -> OpABC {
-        unsafe { mem::transmute(instr) }
-    }
-
-    pub fn as_instr(self) -> Instr {
+impl Encode for OpABC {
+    fn as_instr(self) -> Instr {
         unsafe { mem::transmute(self) }
     }
 }
 
-impl OpAD {
-    pub fn from_instr(instr: Instr) -> OpAD {
-        unsafe { mem::transmute(instr) }
-    }
-
-    pub fn as_instr(self) -> Instr {
+impl Encode for OpAD {
+    fn as_instr(self) -> Instr {
         unsafe { mem::transmute(self) }
-    }
-}
-
-impl Show for OpABC {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let op: OpCode = FromPrimitive::from_u8(self.op).unwrap();
-        write!(f, "{}(a:{},b:{},c:{})", op, self.a, self.b, self.c)
-    }
-}
-
-impl Show for OpAD {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let op: OpCode = FromPrimitive::from_u8(self.op).unwrap();
-        write!(f, "{}(a:{},d:{})", op, self.a, self.d)
-    }
-}
-
-impl Show for Instr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.decode().ty()  {
-            vm::TyAD => write!(f, "{}", OpAD::from_instr(*self)),
-            vm::TyABC => write!(f, "{}", OpABC::from_instr(*self))
-        }
     }
 }
 
 impl Decode for Instr {
     fn decode(self) -> OpCode {
-        let opcode = OpABC::from_instr(self).op;
-        FromPrimitive::from_u8(opcode).unwrap()
+        let opcode = self.as_abc().op;
+        match FromPrimitive::from_u8(opcode) {
+            Some(op) => op,
+            None => fail!("invalid opcode: {}", opcode)
+        }
+    }
+
+    fn as_abc(self) -> OpABC {
+        unsafe { mem::transmute(self) }
+    }
+
+    fn as_ad(self) -> OpAD {
+        unsafe { mem::transmute(self) }
     }
 }
+
+macro_rules! emit_loadstore(
+    ($ty:ident, $field:ident, $load:ident, $store:ident) => (
+        impl $ty {
+            pub fn $load(self, vm: &mut Vm) -> Slot {
+                let slots = vm.slot[vm.ctx.base..];
+                slots[self.$field as uint].clone()
+            }
+
+            pub fn $store(self, vm: &mut Vm, slot: Slot) {
+                *vm.slot.get_mut(vm.ctx.base + self.$field as uint) = slot;
+            }
+        }
+    );
+)
+
+emit_loadstore!(OpABC, a, load_a, store_a)
+emit_loadstore!(OpABC, b, load_b, store_b)
+emit_loadstore!(OpABC, c, load_c, store_c)
+
+emit_loadstore!(OpAD, a, load_a, store_a)
+emit_loadstore!(OpAD, d, load_d, store_d)

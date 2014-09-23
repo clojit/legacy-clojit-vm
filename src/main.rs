@@ -1,16 +1,26 @@
-extern crate serialize;
+#![feature(macro_rules)]
+#![feature(phase)]
 
-use std::io::File;
+extern crate serialize;
+#[phase(plugin, link)] extern crate log;
+
+use std::io;
 use std::os;
 
 use std::collections::HashMap;
 
 use serialize::{json, Decoder, Decodable};
 
+use vm::Vm;
+use vm::VmData;
+use vm::Keyword;
 use vm::Instr;
 use vm::OpCode;
 
+use decode::Encode;
+
 mod vm;
+mod diag;
 mod decode;
 mod fetch;
 mod execute;
@@ -31,7 +41,7 @@ struct JsonBytecode {
     CINT   : Vec<i64>,
     CFLOAT : Vec<f64>,
     CSTR   : Vec<String>,
-    CKEY   : Vec<String>
+    CKEY   : Vec<Keyword>
 }
 
 impl<D: Decoder<E>, E> Decodable<D, E> for Instr {
@@ -57,18 +67,42 @@ impl<D: Decoder<E>, E> Decodable<D, E> for Instr {
     }
 }
 
-fn main() {
-    let mut reader = match os::args().slice_from(1) {
-        [ref arg, ..] => File::open(&Path::new(arg.clone())),
-        [] => {
-            println!("usage: {} input.json", os::args()[0]);
-            os::set_exit_status(1);
-            return;
-        }
+fn parse_json(path: &Path) -> Result<VmData, json::DecoderError> {
+    let mut reader = match io::File::open(path) {
+        Ok(reader) => reader,
+        Err(err) => return Err(json::ParseError(
+                        json::IoError(err.kind, err.desc)))
     };
 
-    let mut decoder = json::Decoder::new(json::from_reader(&mut reader).unwrap());
-    let json : JsonBytecode = Decodable::decode(&mut decoder).unwrap();
+    let mut decoder = match json::from_reader(&mut reader) {
+        Ok(json) => json::Decoder::new(json),
+        Err(err) => return Err(json::ParseError(err))
+    };
 
-    println!("{}", json);
+    let bc : JsonBytecode = try!(Decodable::decode(&mut decoder));
+
+    Ok(VmData {
+        cfunc  : bc.CFUNC,
+        cint   : bc.CINT,
+        cfloat : bc.CFLOAT,
+        cstr   : bc.CSTR,
+        ckey   : bc.CKEY
+    })
+}
+
+
+fn main() {
+    let args = os::args();
+    if args.len() < 2 {
+        println!("usage: {} input.json", args[0]);
+        os::set_exit_status(1);
+        return;
+    }
+
+    let path = Path::new(args[1].as_slice());
+
+    match parse_json(&path) {
+        Ok(data) => Vm::new(data).start(),
+        Err(err) => println!("{}", err)
+    };
 }
