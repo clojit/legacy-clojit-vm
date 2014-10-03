@@ -7,6 +7,7 @@ use vm::Instr;
 use vm::OpCode;
 
 use decode::Decode;
+use decode::from_instr;
 use decode::OpAD;
 use decode::OpABC;
 
@@ -27,8 +28,8 @@ impl Show for OpAD {
 impl Show for Instr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.decode().ty()  {
-            vm::TyAD => write!(f, "{}", self.as_ad()),
-            vm::TyABC => write!(f, "{}", self.as_abc())
+            vm::TyAD =>  write!(f, "{}", from_instr::<OpAD>(self)),
+            vm::TyABC => write!(f, "{}", from_instr::<OpABC>(self))
         }
     }
 }

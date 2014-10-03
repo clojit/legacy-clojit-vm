@@ -1,21 +1,18 @@
 use std::mem;
 
-use vm;
-use vm::Vm;
-use vm::VmSlots;
-
-use vm::Slot;
 use vm::Instr;
 use vm::OpCode;
 
 pub trait Decode {
     fn decode(self) -> OpCode;
-    fn as_abc(self) -> OpABC;
-    fn as_ad(self) -> OpAD;
 }
 
-pub trait Encode {
-    fn as_instr(self) -> Instr;
+pub trait FromInstr {
+    fn from_instr(Instr) -> Self;
+}
+
+pub trait ToInstr {
+    fn to_instr(self) -> Instr;
 }
 
 #[repr(packed)]
@@ -30,54 +27,46 @@ pub struct OpAD {
     pub a: u8, pub op: u8
 }
 
-impl Encode for OpABC {
-    fn as_instr(self) -> Instr {
+pub fn from_instr<A: FromInstr>(i: &Instr) -> A {
+    FromInstr::from_instr(*i)
+}
+
+impl FromInstr for Instr {
+    fn from_instr(instr: Instr) -> Instr {
+        instr
+    }
+}
+
+impl ToInstr for OpABC {
+    fn to_instr(self) -> Instr {
         unsafe { mem::transmute(self) }
     }
 }
 
-impl Encode for OpAD {
-    fn as_instr(self) -> Instr {
+impl FromInstr for OpABC {
+    fn from_instr(instr: Instr) -> OpABC {
+        unsafe { mem::transmute(instr) }
+    }
+}
+
+impl ToInstr for OpAD {
+    fn to_instr(self) -> Instr {
         unsafe { mem::transmute(self) }
+    }
+}
+
+impl FromInstr for OpAD {
+    fn from_instr(instr: Instr) -> OpAD {
+        unsafe { mem::transmute(instr) }
     }
 }
 
 impl Decode for Instr {
     fn decode(self) -> OpCode {
-        let opcode = self.as_abc().op;
+        let opcode = from_instr::<OpABC>(&self).op;
         match FromPrimitive::from_u8(opcode) {
             Some(op) => op,
             None => fail!("invalid opcode: {}", opcode)
         }
     }
-
-    fn as_abc(self) -> OpABC {
-        unsafe { mem::transmute(self) }
-    }
-
-    fn as_ad(self) -> OpAD {
-        unsafe { mem::transmute(self) }
-    }
 }
-
-macro_rules! emit_loadstore(
-    ($ty:ident, $field:ident, $load:ident, $store:ident) => (
-        impl $ty {
-            pub fn $load(self, vm: &mut Vm) -> Slot {
-                let slots = vm.slot[vm.ctx.base..];
-                slots[self.$field as uint].clone()
-            }
-
-            pub fn $store(self, vm: &mut Vm, slot: Slot) {
-                *vm.slot.get_mut(vm.ctx.base + self.$field as uint) = slot;
-            }
-        }
-    );
-)
-
-emit_loadstore!(OpABC, a, load_a, store_a)
-emit_loadstore!(OpABC, b, load_b, store_b)
-emit_loadstore!(OpABC, c, load_c, store_c)
-
-emit_loadstore!(OpAD, a, load_a, store_a)
-emit_loadstore!(OpAD, d, load_d, store_d)

@@ -1,5 +1,6 @@
 #![feature(macro_rules)]
 #![feature(phase)]
+//#![feature(struct_variant)]
 
 extern crate serialize;
 #[phase(plugin, link)] extern crate log;
@@ -12,12 +13,13 @@ use std::collections::HashMap;
 use serialize::{json, Decoder, Decodable};
 
 use vm::Vm;
-use vm::VmData;
+use vm::Data;
+use vm::Code;
 use vm::Keyword;
 use vm::Instr;
 use vm::OpCode;
 
-use decode::Encode;
+use decode::ToInstr;
 
 mod vm;
 mod diag;
@@ -53,7 +55,7 @@ impl<D: Decoder<E>, E> Decodable<D, E> for Instr {
                      op: json.op as u8,
                       a: json.a.unwrap_or_default(),
                       d: json.d.unwrap_or_default(),
-                    }.as_instr())
+                    }.to_instr())
             },
             vm::TyABC => {
                 Ok(decode::OpABC {
@@ -61,13 +63,13 @@ impl<D: Decoder<E>, E> Decodable<D, E> for Instr {
                       a: json.a.unwrap_or_default(),
                       b: json.b.unwrap_or_default(),
                       c: json.c.unwrap_or_default(),
-                    }.as_instr())
+                    }.to_instr())
             },
         }
     }
 }
 
-fn parse_json(path: &Path) -> Result<VmData, json::DecoderError> {
+fn parse_json(path: &Path) -> Result<(Data, Code), json::DecoderError> {
     let mut reader = match io::File::open(path) {
         Ok(reader) => reader,
         Err(err) => return Err(json::ParseError(
@@ -81,13 +83,20 @@ fn parse_json(path: &Path) -> Result<VmData, json::DecoderError> {
 
     let bc : JsonBytecode = try!(Decodable::decode(&mut decoder));
 
-    Ok(VmData {
-        cfunc  : bc.CFUNC,
+    let data = Data {
         cint   : bc.CINT,
         cfloat : bc.CFLOAT,
         cstr   : bc.CSTR,
         ckey   : bc.CKEY
-    })
+    };
+
+    let code = Code {
+        ip : 0,
+        fp : 0,
+        func : bc.CFUNC
+    };
+
+    Ok((data, code))
 }
 
 
@@ -102,7 +111,7 @@ fn main() {
     let path = Path::new(args[1].as_slice());
 
     match parse_json(&path) {
-        Ok(data) => Vm::new(data).start(),
+        Ok((data, code)) => Vm::new(data, code).start(),
         Err(err) => println!("{}", err)
     };
 }

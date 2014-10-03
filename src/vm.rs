@@ -49,39 +49,55 @@ type CFloat = Vec<f64>;
 type CStr   = Vec<String>;
 type CKey   = Vec<Keyword>;
 
-pub struct VmContext {
-    pub ip : uint,
-    pub func : uint,
-    pub base : uint,
-}
+type InstrPtr = uint;
+type FuncPtr = uint;
+type BasePtr = uint;
 
-pub struct VmData {
-    pub cfunc  : CFunc,
+pub struct Data {
     pub cint   : CInt,
     pub cfloat : CFloat,
     pub cstr   : CStr,
     pub ckey   : CKey
 }
 
-pub type VmSlots = Vec<Slot>;
-pub type VmStack = Vec<VmContext>;
+pub struct Code {
+    pub fp : FuncPtr,
+    pub ip : InstrPtr,
+    pub func : CFunc,
+}
+
+pub struct Slots {
+    pub base : BasePtr,
+    pub slot : Vec<Slot>,
+}
+
+type Stack = Vec<(BasePtr, InstrPtr, BasePtr)>;
 
 pub struct Vm {
-    pub ctx   : VmContext,
-    pub stack : VmStack,
-    pub slot  : VmSlots,
-    pub data  : VmData,
+    pub stack : Stack,
+    pub slots : Slots,
+    pub data  : Data,
+    pub code  : Code
 }
 
 static VM_MAX_SLOTS : uint = 64000u;
 
+impl Slots {
+    pub fn new() -> Slots {
+        Slots {
+            base : 0,
+            slot : Vec::from_fn(VM_MAX_SLOTS, |_| Nil),
+        }
+    }
+}
+
 impl Vm {
-    pub fn new(data: VmData) -> Vm
+    pub fn new(data: Data, code: Code) -> Vm
     {
         Vm {
-            ctx   : VmContext { ip : 0, func : 0, base : 0 },
-            slot  : Vec::from_fn(VM_MAX_SLOTS, |i| Nil),
             stack : vec![],
+            slots : Slots::new(),
+            code  : code,
             data  : data
         }
     }
@@ -91,10 +107,46 @@ impl Vm {
 
         while instr.decode() != EXIT {
             let next = instr.execute(self);
-            println!("{}: {}", instr, self.slot[..10]);
+            println!("{}: {}", instr, self.slots.slot[..10]);
 
             instr = next;
         }
+    }
+
+    pub fn push_context(&mut self) {
+        self.stack.push((self.slots.base, self.code.ip, self.code.fp));
+    }
+
+    pub fn pop_context(&mut self) {
+        let (base, ip, fp) = self.stack.pop().unwrap();
+
+        self.slots.base = base;
+        self.code.ip = ip;
+        self.code.fp = fp;
+    }
+}
+
+impl<I:ToPrimitive> IndexMut<I, Slot> for Slots {
+    fn index_mut(&mut self, index: &I) -> &mut Slot {
+        let index = index.to_uint().unwrap();
+        self.slot.get_mut(self.base + index)
+    }
+}
+
+impl<I:ToPrimitive> Index<I, Slot> for Slots {
+    fn index(&self, index: &I) -> &Slot {
+        let index = index.to_uint().unwrap();
+        &self.slot[self.base + index]
+    }
+}
+
+impl Slots {
+    pub fn load<I:ToPrimitive>(&self, index: I) -> Slot {
+        self[index].clone()
+    }
+
+    pub fn store<I:ToPrimitive>(&mut self, index: I, val: Slot) {
+        self[index] = val
     }
 }
 
