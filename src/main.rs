@@ -27,7 +27,7 @@ mod decode;
 mod fetch;
 mod execute;
 
-#[deriving(Decodable, Show)]
+#[deriving(Decodable)]
 struct JsonInstr {
     op: OpCode,
     a: Option<u8>,
@@ -37,9 +37,9 @@ struct JsonInstr {
 }
 
 #[allow(non_snake_case)]
-#[deriving(Decodable, Show)]
+#[deriving(Decodable)]
 struct JsonBytecode {
-    CFUNC  : HashMap<uint, Vec<Instr>>,
+    bytecode  : Vec<Instr>,
     CINT   : Vec<i64>,
     CFLOAT : Vec<f64>,
     CSTR   : Vec<String>,
@@ -92,8 +92,7 @@ fn parse_json(path: &Path) -> Result<(Data, Code), json::DecoderError> {
 
     let code = Code {
         ip : 0,
-        fp : 0,
-        func : bc.CFUNC
+        func : bc.bytecode
     };
 
     Ok((data, code))

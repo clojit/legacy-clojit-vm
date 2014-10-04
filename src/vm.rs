@@ -9,7 +9,7 @@ pub struct Instr(pub u32);
 
 #[deriving(Show, PartialEq, FromPrimitive, Decodable)]
 pub enum OpCode {
-    CSTR, CKEY, CINT, CFLOAT, CBOOL, CNIL, CFUNC,
+    CSTR, CKEY, CINT, CSHORT, CFLOAT, CBOOL, CNIL,
     NSSETS, NSGETS,
     ADDVV, SUBVV, MULVV, DIVVV, MODVV, POWVV,
     ISLT, ISGE, ISLE, ISGT, ISEQ, ISNEQ,
@@ -18,6 +18,7 @@ pub enum OpCode {
     CALL, RET,
     APPLY,
     FNEW,
+    DROP, UCLO,
     SETFREEVAR, GETFREEVAR,
     LOOP, BULKMOV,
     NEWARRAY, GETARRAY, SETARRAY,
@@ -43,15 +44,15 @@ pub enum Slot {
     Func(uint),
 }
 
-type CFunc  = HashMap<uint, Vec<Instr>>;
+type CFunc  = Vec<Instr>;
 type CInt   = Vec<i64>;
 type CFloat = Vec<f64>;
 type CStr   = Vec<String>;
 type CKey   = Vec<Keyword>;
 
-type InstrPtr = uint;
-type FuncPtr = uint;
-type BasePtr = uint;
+pub type InstrPtr = uint;
+pub type FuncPtr = uint;
+pub type BasePtr = uint;
 
 pub struct Data {
     pub cint   : CInt,
@@ -61,7 +62,6 @@ pub struct Data {
 }
 
 pub struct Code {
-    pub fp : FuncPtr,
     pub ip : InstrPtr,
     pub func : CFunc,
 }
@@ -71,7 +71,12 @@ pub struct Slots {
     pub slot : Vec<Slot>,
 }
 
-type Stack = Vec<(BasePtr, InstrPtr, BasePtr)>;
+pub struct Context {
+    pub base : BasePtr,
+    pub ip : InstrPtr,
+}
+
+type Stack = Vec<Context>;
 
 pub struct Vm {
     pub stack : Stack,
@@ -113,16 +118,16 @@ impl Vm {
         }
     }
 
-    pub fn push_context(&mut self) {
-        self.stack.push((self.slots.base, self.code.ip, self.code.fp));
+    pub fn get_context(&self) -> Context {
+        Context {
+            base : self.slots.base,
+            ip : self.code.ip,
+        }
     }
 
-    pub fn pop_context(&mut self) {
-        let (base, ip, fp) = self.stack.pop().unwrap();
-
-        self.slots.base = base;
-        self.code.ip = ip;
-        self.code.fp = fp;
+    pub fn set_context(&mut self, ctx: Context) {
+        self.slots.base = ctx.base;
+        self.code.ip = ctx.ip;
     }
 }
 
@@ -160,12 +165,13 @@ impl OpCode {
             LOOP|BULKMOV|
             NEWARRAY|GETARRAY|SETARRAY
                 => TyABC,
-            CSTR|CKEY|CINT|CFLOAT|CBOOL|CNIL|CFUNC|
+            CSTR|CKEY|CINT|CFLOAT|CSHORT|CBOOL|CNIL|
             NSSETS|NSGETS|
             MOV|NOT|NEG|
             JUMP|JUMPF|JUMPT|
             CALL|RET|
             FNEW|
+            DROP|UCLO|
             FUNCF|FUNCV|
             EXIT
                 => TyAD,

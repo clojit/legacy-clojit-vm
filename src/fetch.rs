@@ -8,12 +8,8 @@ pub trait Fetch {
 
 impl Fetch for Vm {
     fn fetch(&mut self, offset: uint) -> Instr {
-        let code = &mut self.code;
-        let func = &code.func[code.fp];
-
-        code.ip += offset;
-
-        func[code.ip]
+        self.code.ip += offset;
+        self.code.func[self.code.ip]
     }
 
     fn fetch_next(&mut self) -> Instr {
