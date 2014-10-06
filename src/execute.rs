@@ -88,8 +88,14 @@ execute! {
     },
 
     vm::FNEW as OpAD => {
-        vm.slots[args.a] = Func(vm.code.ip + args.d as uint);
+        let func = vm.code.ip as int + args.d as i16 as int;
+        vm.slots[args.a] = Func(func as uint);
         vm.fetch_next()
+    },
+
+    vm::JUMP as OpAD => {
+        let offset = args.d as i16 as int;
+        vm.fetch(offset)
     },
 
     vm::MOV as OpAD => {

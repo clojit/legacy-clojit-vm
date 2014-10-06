@@ -8,8 +8,6 @@ extern crate serialize;
 use std::io;
 use std::os;
 
-use std::collections::HashMap;
-
 use serialize::{json, Decoder, Decodable};
 
 use vm::Vm;
@@ -33,7 +31,7 @@ struct JsonInstr {
     a: Option<u8>,
     b: Option<u8>,
     c: Option<u8>,
-    d: Option<u16>
+    d: Option<i32> // either i16 or u16
 }
 
 #[allow(non_snake_case)]
@@ -54,7 +52,7 @@ impl<D: Decoder<E>, E> Decodable<D, E> for Instr {
                 Ok(decode::OpAD {
                      op: json.op as u8,
                       a: json.a.unwrap_or_default(),
-                      d: json.d.unwrap_or_default(),
+                      d: json.d.unwrap_or_default() as u16,
                     }.to_instr())
             },
             vm::TyABC => {
