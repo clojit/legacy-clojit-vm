@@ -98,6 +98,28 @@ execute! {
         vm.fetch(offset)
     },
 
+    vm::JUMPF as OpAD => {
+        let jumpf_bool = vm.slots[args.a].clone();
+  
+        match jumpf_bool {
+            Bool(true) =>  vm.fetch_next(),
+            Bool(false) => { let offset = args.d as i16 as int;
+                             vm.fetch(offset) }
+            _ => fail!("Invoked on non bool slot")
+        }
+    },
+
+    vm::JUMPT as OpAD => {
+        let jumpt_bool = vm.slots[args.a].clone();
+  
+        match jumpt_bool {
+            Bool(false) =>  vm.fetch_next(),
+            Bool(true) => { let offset = args.d as i16 as int;
+                            vm.fetch(offset) }
+            _ => fail!("Invoked on non bool slot")
+        }
+    },
+
     vm::MOV as OpAD => {
         vm.slots[args.a] = vm.slots.load(args.d);
         vm.fetch_next()
