@@ -47,6 +47,25 @@ execute! {
         vm.fetch_next()
     },
 
+    // ---------------------- Comparisent ----------------------
+
+    vm::ISEQ as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+        
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Bool(val1 == val2),
+            (Float(val1), Float(val2)) => Bool(val1 == val2),
+            (Int(val1),   Float(val2)) => Bool(val1 as f64 == val2),
+            (Float(val1), Int(val2))   => Bool(val1 == val2 as f64),
+            _ => fail!("Invalid operand types for ISEQ")
+        };
+
+        vm.slots[args.a] = res;
+
+        vm.fetch_next()
+    },
+
     vm::CSTR as OpAD => {
         let string = vm.data.cstr[args.d as uint].clone();
         vm.slots[args.a] = Str(string);
