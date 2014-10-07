@@ -78,7 +78,7 @@ execute! {
     },
 
     vm::CBOOL as OpAD => {
-        vm.slots[args.a] = Bool(args.d == 0);
+        vm.slots[args.a] = Bool(args.d == 1);
         vm.fetch_next()
     },
 
