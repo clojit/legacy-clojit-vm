@@ -30,6 +30,8 @@ macro_rules! execute (
 execute! {
     using vm with args
 
+    // ---------------------- Math ----------------------
+
     vm::ADDVV as OpABC => {
         let slot1 = vm.slots.load(args.b);
         let slot2 = vm.slots.load(args.c);
@@ -65,6 +67,8 @@ execute! {
 
         vm.fetch_next()
     },
+
+    // ---------------------- Const Ops ----------------------
 
     vm::CSTR as OpAD => {
         let string = vm.data.cstr[args.d as uint].clone();
@@ -106,11 +110,15 @@ execute! {
         vm.fetch_next()
     },
 
+    // --------- Closures and Free Variables ----------
+
     vm::FNEW as OpAD => {
         let func = vm.code.ip as int + args.d as i16 as int;
         vm.slots[args.a] = Func(func as uint);
         vm.fetch_next()
     },
+
+    // ---------------------- JUMPs ----------------------
 
     vm::JUMP as OpAD => {
         let offset = args.d as i16 as int;
@@ -138,10 +146,14 @@ execute! {
         }
     },
 
+    // ---------------------- Unary Ops ----------------------
+
     vm::MOV as OpAD => {
         vm.slots[args.a] = vm.slots.load(args.d);
         vm.fetch_next()
     },
+
+    // ---------------------- Function Calls ----------------------
 
     vm::CALL as OpAD  => {
         let base = args.a as uint;
