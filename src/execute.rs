@@ -131,9 +131,73 @@ execute! {
             (Float(val1), Int(val2))   => Bool(val1 == val2 as f64),
             _ => fail!("Invalid operand types for ISEQ")
         };
-        
-        vm.slots[args.a] = res;
 
+        vm.slots[args.a] = res;
+        vm.fetch_next()
+    },
+
+    vm::ISNEQ as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Bool(val1 != val2),
+            (Float(val1), Float(val2)) => Bool(val1 != val2),
+            (Int(val1),   Float(val2)) => Bool(val1 as f64 != val2),
+            (Float(val1), Int(val2))   => Bool(val1 != val2 as f64),
+            _ => fail!("Invalid operand types for ISEQ")
+        };
+
+        vm.slots[args.a] = res;
+        vm.fetch_next()
+    },
+
+
+    vm::ISGE as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Bool(val1 >= val2),
+            (Float(val1), Float(val2)) => Bool(val1 >= val2),
+            (Int(val1),   Float(val2)) => Bool(val1 as f64 >= val2),
+            (Float(val1), Int(val2))   => Bool(val1 >= val2 as f64),
+            _ => fail!("Invalid operand types for ISGE")
+        };
+
+        vm.slots[args.a] = res;
+        vm.fetch_next()
+    },
+
+    vm::ISLE as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Bool(val1 <= val2),
+            (Float(val1), Float(val2)) => Bool(val1 <= val2),
+            (Int(val1),   Float(val2)) => Bool(val1 as f64 <= val2),
+            (Float(val1), Int(val2))   => Bool(val1 <= val2 as f64),
+            _ => fail!("Invalid operand types for ISLE")
+        };
+
+        vm.slots[args.a] = res;
+        vm.fetch_next()
+    },
+
+    vm::ISGT as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Bool(val1 > val2),
+            (Float(val1), Float(val2)) => Bool(val1 > val2),
+            (Int(val1),   Float(val2)) => Bool(val1 as f64 > val2),
+            (Float(val1), Int(val2))   => Bool(val1 > val2 as f64),
+            _ => fail!("Invalid operand types for ISGT")
+        };
+
+        vm.slots[args.a] = res;
         vm.fetch_next()
     },
 
