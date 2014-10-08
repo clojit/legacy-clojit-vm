@@ -49,6 +49,75 @@ execute! {
         vm.fetch_next()
     },
 
+    vm::SUBVV as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Int(val1 - val2),
+            (Float(val1), Float(val2)) => Float(val1 - val2),
+            (Int(val1),   Float(val2)) => Float(val1 as f64 - val2),
+            (Float(val1), Int(val2))   => Float(val1 - val2 as f64),
+            _ => fail!("Invalid operand types for SUBVV")
+        };
+
+        vm.slots[args.a] = res;
+
+        vm.fetch_next()
+    },
+
+    vm::MULVV as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Int(val1 * val2),
+            (Float(val1), Float(val2)) => Float(val1 * val2),
+            (Int(val1),   Float(val2)) => Float(val1 as f64 * val2),
+            (Float(val1), Int(val2))   => Float(val1 * val2 as f64),
+            _ => fail!("Invalid operand types for MULVV")
+        };
+
+        vm.slots[args.a] = res;
+
+        vm.fetch_next()
+    },
+
+    vm::DIVVV as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Float(val1 as f64 / val2 as f64),
+            (Float(val1), Float(val2)) => Float(val1 / val2),
+            (Int(val1),   Float(val2)) => Float(val1 as f64 / val2),
+            (Float(val1), Int(val2))   => Float(val1 / val2 as f64),
+            _ => fail!("Invalid operand types for DIVVV")
+        };
+
+        vm.slots[args.a] = res;
+
+        vm.fetch_next()
+    },
+
+    vm::MODVV as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Int(val1 % val2),
+            (Float(val1), Float(val2)) => Float(val1 % val2),
+            (Int(val1),   Float(val2)) => Float(val1 as f64 % val2),
+            (Float(val1), Int(val2))   => Float(val1 % val2 as f64),
+            _ => fail!("Invalid operand types for MOVVV")
+        };
+
+        vm.slots[args.a] = res;
+
+        vm.fetch_next()
+    },
+
+
     // ---------------------- Comparisent ----------------------
 
     vm::ISEQ as OpABC => {
