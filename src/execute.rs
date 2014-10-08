@@ -153,6 +153,18 @@ execute! {
         vm.fetch_next()
     },
 
+    vm::NOT as OpAD => {
+        let src_slot = vm.slots.load(args.d);
+
+        let dst_val = match src_slot {
+            Bool(false) | Nil =>  Bool(true),
+            _ => Bool(false)          
+        };
+
+        vm.slots.store(args.a, dst_val);
+        vm.fetch_next()
+    },
+
 
 
     vm::BULKMOV as OpABC => {
