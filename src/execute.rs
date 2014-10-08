@@ -178,6 +178,7 @@ execute! {
     },
 
 
+    // ----------- Tail Recursion and Loops ------------
 
     vm::BULKMOV as OpABC => {
 
@@ -222,6 +223,16 @@ execute! {
 
         let caller = vm.stack.pop().unwrap();
         vm.set_context(caller);
+        vm.fetch_next()
+    },
+
+    // --------------- Function Def ------------
+
+    vm::FUNCF as OpAD => {
+        vm.fetch_next()
+    },
+
+    vm::FUNCV as OpAD => {
         vm.fetch_next()
     },
 
