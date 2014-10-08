@@ -153,6 +153,22 @@ execute! {
         vm.fetch_next()
     },
 
+
+
+    vm::BULKMOV as OpABC => {
+
+        for x in range(0, args.c) {
+            //vm.slots.mov(args.a+x, args.b+x)
+            vm.slots[args.a+x] = vm.slots.load(args.b+x);
+        }
+
+        vm.fetch_next()
+    },
+
+    vm::LOOP as OpABC => {
+        vm.fetch_next()
+    },
+
     // ---------------------- Function Calls ----------------------
 
     vm::CALL as OpAD  => {
