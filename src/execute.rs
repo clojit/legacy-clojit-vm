@@ -165,6 +165,18 @@ execute! {
         vm.fetch_next()
     },
 
+    vm::NEG as OpAD => {
+        let src_slot = vm.slots.load(args.d);
+
+        let dst_val = match src_slot {
+            Int(val)   => Int(- val),
+            Float(val) => Float(- val),
+            _ => fail!("Tried to execute invalid bytecode, NOT")
+        };
+        vm.slots.store(args.a, dst_val);
+        vm.fetch_next()
+    },
+
 
 
     vm::BULKMOV as OpABC => {
