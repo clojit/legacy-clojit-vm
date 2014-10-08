@@ -62,7 +62,7 @@ execute! {
             (Float(val1), Int(val2))   => Bool(val1 == val2 as f64),
             _ => fail!("Invalid operand types for ISEQ")
         };
-
+        
         vm.slots[args.a] = res;
 
         vm.fetch_next()
@@ -212,6 +212,18 @@ execute! {
         vm.set_context(caller);
         vm.fetch_next()
     },
+
+    // --------------- Run-Time Behavior ------------
+
+    vm::DROP as OpAD => {
+
+        for i in range(args.a as int, 1 + args.d as int) {
+            vm.slots.store(i, Nil);
+        }
+
+        vm.fetch_next()
+    },
+
 
     _ as Instr => {
         error!("skipping instruction: {}", args);
