@@ -152,6 +152,11 @@ impl Slots {
     pub fn store<I:ToPrimitive>(&mut self, index: I, val: Slot) {
         self[index] = val
     }
+
+    //pub fn mov<I:ToPrimitive>(&mut self, dst_index: I, src_index: I) {
+    //    let src_slot = self.load(src_index);
+    //    self.store(dst_index, src_slot);
+    //}
 }
 
 impl OpCode {
