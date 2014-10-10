@@ -71,6 +71,31 @@ execute! {
         vm.slots[args.a] = Nil;
         vm.fetch_next()
     },
+
+    // -------------------- Global Table Ops ------------------
+
+    vm::NSSETS as OpAD => {
+
+        vm.symbol_table.insert(vm.data.cstr[args.d as uint].clone(),
+                               vm.slots.load(args.a) );
+
+        vm.fetch_next()
+    },
+
+    vm::NSGETS as OpAD => {
+
+        let symbol = vm.data.cstr[args.d as uint].clone();
+
+        let value = match vm.symbol_table.find(&symbol) {
+            Some(Slot) => Slot.clone(),
+            None => fail!("Symbol not found in symbol_table")
+        };
+
+        vm.slots[args.a] = value;
+
+        vm.fetch_next()
+    },
+
     // ---------------------- Math ----------------------
 
     vm::ADDVV as OpABC => {

@@ -1,8 +1,11 @@
 use std::default::Default;
+use std::collections::HashMap;
+
 
 use fetch::Fetch;
 use decode::Decode;
 use execute::Execute;
+
 
 pub struct Instr(pub u32);
 
@@ -81,7 +84,9 @@ pub struct Vm {
     pub stack : Stack,
     pub slots : Slots,
     pub data  : Data,
-    pub code  : Code
+    pub code  : Code,
+    pub symbol_table : HashMap<String
+, Slot>
 }
 
 static VM_MAX_SLOTS : uint = 64000u;
@@ -102,7 +107,8 @@ impl Vm {
             stack : vec![],
             slots : Slots::new(),
             code  : code,
-            data  : data
+            data  : data,
+            symbol_table : HashMap::new()
         }
     }
 
