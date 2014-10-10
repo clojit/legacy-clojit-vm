@@ -245,7 +245,7 @@ execute! {
     // --------- Closures and Free Variables ----------
 
     vm::FNEW as OpAD => {
-        let func = vm.code.ip as int + args.d as i16 as int;
+        let func = args.d as int;
         vm.slots[args.a] = Func(func as uint);
         vm.fetch_next()
     },
