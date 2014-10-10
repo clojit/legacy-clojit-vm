@@ -30,6 +30,47 @@ macro_rules! execute (
 execute! {
     using vm with args
 
+    // ---------------------- Const Ops ----------------------
+
+    vm::CSTR as OpAD => {
+        let string = vm.data.cstr[args.d as uint].clone();
+        vm.slots[args.a] = Str(string);
+        vm.fetch_next()
+    },
+
+    vm::CKEY as OpAD => {
+        let keyword = vm.data.ckey[args.d as uint].clone();
+        vm.slots[args.a] = Key(keyword);
+        vm.fetch_next()
+    },
+
+    vm::CSHORT as OpAD => {
+        let integer = args.d as i64;
+        vm.slots[args.a] = Int(integer);
+        vm.fetch_next()
+    },
+
+    vm::CINT as OpAD => {
+        let integer = vm.data.cint[args.d as uint];
+        vm.slots[args.a] = Int(integer);
+        vm.fetch_next()
+    },
+
+    vm::CFLOAT as OpAD => {
+        let float = vm.data.cfloat[args.d as uint];
+        vm.slots[args.a] = Float(float);
+        vm.fetch_next()
+    },
+
+    vm::CBOOL as OpAD => {
+        vm.slots[args.a] = Bool(args.d == 1);
+        vm.fetch_next()
+    },
+
+    vm::CNIL as OpAD => {
+        vm.slots[args.a] = Nil;
+        vm.fetch_next()
+    },
     // ---------------------- Math ----------------------
 
     vm::ADDVV as OpABC => {
@@ -123,7 +164,7 @@ execute! {
     vm::ISEQ as OpABC => {
         let slot1 = vm.slots.load(args.b);
         let slot2 = vm.slots.load(args.c);
-        
+
         let res = match (slot1, slot2) {
             (Int(val1),   Int(val2))   => Bool(val1 == val2),
             (Float(val1), Float(val2)) => Bool(val1 == val2),
@@ -198,48 +239,6 @@ execute! {
         };
 
         vm.slots[args.a] = res;
-        vm.fetch_next()
-    },
-
-    // ---------------------- Const Ops ----------------------
-
-    vm::CSTR as OpAD => {
-        let string = vm.data.cstr[args.d as uint].clone();
-        vm.slots[args.a] = Str(string);
-        vm.fetch_next()
-    },
-
-    vm::CKEY as OpAD => {
-        let keyword = vm.data.ckey[args.d as uint].clone();
-        vm.slots[args.a] = Key(keyword);
-        vm.fetch_next()
-    },
-
-    vm::CSHORT as OpAD => {
-        let integer = args.d as i64;
-        vm.slots[args.a] = Int(integer);
-        vm.fetch_next()
-    },
-
-    vm::CINT as OpAD => {
-        let integer = vm.data.cint[args.d as uint];
-        vm.slots[args.a] = Int(integer);
-        vm.fetch_next()
-    },
-
-    vm::CFLOAT as OpAD => {
-        let float = vm.data.cfloat[args.d as uint];
-        vm.slots[args.a] = Float(float);
-        vm.fetch_next()
-    },
-
-    vm::CBOOL as OpAD => {
-        vm.slots[args.a] = Bool(args.d == 1);
-        vm.fetch_next()
-    },
-
-    vm::CNIL as OpAD => {
-        vm.slots[args.a] = Nil;
         vm.fetch_next()
     },
 
