@@ -377,6 +377,10 @@ execute! {
 
     vm::RET as OpAD => {
         vm.slots[0u] = vm.slots.load(args.a);
+        
+        for i in range(2, args.a as int) {
+            vm.slots.store(i, Nil);
+        }
 
         let caller = vm.stack.pop().unwrap();
         vm.set_context(caller);
