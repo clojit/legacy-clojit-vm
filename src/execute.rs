@@ -1,6 +1,6 @@
 use vm;
 use vm::Vm;
-use vm::{Nil, Int, Float, Bool, Str, Key, Func};
+use vm::{Nil, Int, Float, Bool, Str, Key, Func, VFunc};
 use vm::Instr;
 use vm::Context;
 
@@ -72,6 +72,11 @@ execute! {
         vm.fetch_next()
     },
 
+    vm::CTYPE as OpAD => {
+        vm.slots[args.a] = Int(args.d as i64);
+        vm.fetch_next()
+    },
+
     // -------------------- Global Table Ops ------------------
 
     vm::NSSETS as OpAD => {
@@ -87,7 +92,7 @@ execute! {
         let symbol = vm.data.cstr[args.d as uint].clone();
 
         let value = match vm.symbol_table.find(&symbol) {
-            Some(Slot) => Slot.clone(),
+            Some(slot) => slot.clone(),
             None => fail!("Symbol not found in symbol_table")
         };
 
@@ -218,6 +223,22 @@ execute! {
         vm.fetch_next()
     },
 
+    /*
+    vm::ISLT as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Bool(val1 > val2),
+            (Float(val1), Float(val2)) => Bool(val1 > val2),
+            (Int(val1),   Float(val2)) => Bool(val1 as f64 > val2),
+            (Float(val1), Int(val2))   => Bool(val1 > val2 as f64),
+            _ => fail!("Invalid operand types for ISLT")
+        };
+
+        vm.slots[args.a] = match res { true => false, false => true };
+        vm.fetch_next()
+    },*/
 
     vm::ISGE as OpABC => {
         let slot1 = vm.slots.load(args.b);
@@ -275,6 +296,12 @@ execute! {
         vm.fetch_next()
     },
 
+    vm::VFNEW as OpAD => {
+        let vfunc = args.d as int;
+        vm.slots[args.a] = VFunc(vfunc as uint);
+        vm.fetch_next()
+    },
+
     // ---------------------- JUMPs ----------------------
 
     vm::JUMP as OpAD => {
@@ -289,7 +316,7 @@ execute! {
             Nil | Bool(false) => { let offset = args.d as i16 as int;
                                    vm.fetch(offset) }
             _ => vm.fetch_next()
-            
+
         }
     },
 
@@ -299,7 +326,7 @@ execute! {
         match jumpt_bool {
             Nil | Bool(false) => vm.fetch_next(),
             _ => { let offset = args.d as i16 as int;
-                   vm.fetch(offset) } 
+                   vm.fetch(offset) }
         }
     },
 
@@ -315,7 +342,7 @@ execute! {
 
         let dst_val = match src_slot {
             Bool(false) | Nil =>  Bool(true),
-            _ => Bool(false)          
+            _ => Bool(false)
         };
 
         vm.slots.store(args.a, dst_val);
@@ -358,8 +385,10 @@ execute! {
         let lit = args.d as i64;
 
         vm.slots[base] = Int(lit);
+
         let func = match vm.slots.load(base+1) {
             Func(func) => func,
+            //VFunc(vfunc) => vfunc, // get type from base+2 and then get from vtable[vfunc][base+2.getType()]
             ref slot => fail!("Tried to execute invalid function: {}", slot)
         };
 

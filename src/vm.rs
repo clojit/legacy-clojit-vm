@@ -6,12 +6,12 @@ use fetch::Fetch;
 use decode::Decode;
 use execute::Execute;
 
-
+#[deriving(Clone)]
 pub struct Instr(pub u32);
 
-#[deriving(Show, PartialEq, FromPrimitive, Decodable)]
+#[deriving(Show, PartialEq, FromPrimitive, Decodable, Clone)]
 pub enum OpCode {
-    CSTR, CKEY, CINT, CSHORT, CFLOAT, CBOOL, CNIL,
+    CSTR, CKEY, CINT, CSHORT, CFLOAT, CBOOL, CNIL,CTYPE,
     NSSETS, NSGETS,
     ADDVV, SUBVV, MULVV, DIVVV, MODVV, POWVV,
     ISLT, ISGE, ISLE, ISGT, ISEQ, ISNEQ,
@@ -19,11 +19,12 @@ pub enum OpCode {
     JUMP, JUMPF, JUMPT,
     CALL, RET,
     APPLY,
-    FNEW,
+    FNEW, VFNEW,
     DROP, UCLO,
     SETFREEVAR, GETFREEVAR,
     LOOP, BULKMOV,
     NEWARRAY, GETARRAY, SETARRAY,
+    ALLOC, SETFIELD, GETFIELD,
     FUNCF, FUNCV,
     EXIT
 }
@@ -44,6 +45,7 @@ pub enum Slot {
     Str(String),
     Key(Keyword),
     Func(uint),
+    VFunc(uint),
 }
 
 type CFunc  = Vec<Instr>;
@@ -51,6 +53,7 @@ type CInt   = Vec<i64>;
 type CFloat = Vec<f64>;
 type CStr   = Vec<String>;
 type CKey   = Vec<Keyword>;
+type VTable = HashMap<uint,HashMap<uint,uint>>;
 
 pub type InstrPtr = uint;
 pub type FuncPtr = uint;
@@ -61,6 +64,11 @@ pub struct Data {
     pub cfloat : CFloat,
     pub cstr   : CStr,
     pub ckey   : CKey
+}
+
+#[deriving(Show)]
+pub struct DispatchData {
+    pub vtable : VTable
 }
 
 pub struct Code {
@@ -85,8 +93,8 @@ pub struct Vm {
     pub slots : Slots,
     pub data  : Data,
     pub code  : Code,
-    pub symbol_table : HashMap<String
-, Slot>
+    pub dd : DispatchData,
+    pub symbol_table : HashMap<String, Slot>
 }
 
 static VM_MAX_SLOTS : uint = 64000u;
@@ -101,13 +109,14 @@ impl Slots {
 }
 
 impl Vm {
-    pub fn new(data: Data, code: Code) -> Vm
+    pub fn new(data: Data, code: Code, dd : DispatchData) -> Vm
     {
         Vm {
             stack : vec![],
             slots : Slots::new(),
             code  : code,
             data  : data,
+            dd    : dd,
             symbol_table : HashMap::new()
         }
     }
@@ -175,14 +184,15 @@ impl OpCode {
             LOOP|BULKMOV|
             NEWARRAY|GETARRAY|SETARRAY
                 => TyABC,
-            CSTR|CKEY|CINT|CFLOAT|CSHORT|CBOOL|CNIL|
+            CSTR|CKEY|CINT|CFLOAT|CSHORT|CBOOL|CNIL|CTYPE|
             NSSETS|NSGETS|
             MOV|NOT|NEG|
             JUMP|JUMPF|JUMPT|
             CALL|RET|
-            FNEW|
+            FNEW| VFNEW|
             DROP|UCLO|
             FUNCF|FUNCV|
+            ALLOC|GETFIELD|SETFIELD|
             EXIT
                 => TyAD,
         }
