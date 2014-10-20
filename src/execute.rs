@@ -1,6 +1,7 @@
 use vm;
 use vm::Vm;
-use vm::{Nil, Int, Float, Bool, Str, Key, Func};
+use vm::CljType;
+use vm::{Nil, Int, Float, Bool, Str, Key, Func, VFunc, Obj, CType};
 use vm::Instr;
 use vm::Context;
 
@@ -72,6 +73,11 @@ execute! {
         vm.fetch_next()
     },
 
+    vm::CTYPE as OpAD => {
+        vm.slots[args.a] = CType(args.d as uint);
+        vm.fetch_next()
+    },
+
     // -------------------- Global Table Ops ------------------
 
     vm::NSSETS as OpAD => {
@@ -87,7 +93,7 @@ execute! {
         let symbol = vm.data.cstr[args.d as uint].clone();
 
         let value = match vm.symbol_table.find(&symbol) {
-            Some(Slot) => Slot.clone(),
+            Some(slot) => slot.clone(),
             None => fail!("Symbol not found in symbol_table")
         };
 
@@ -218,6 +224,22 @@ execute! {
         vm.fetch_next()
     },
 
+    /*
+    vm::ISLT as OpABC => {
+        let slot1 = vm.slots.load(args.b);
+        let slot2 = vm.slots.load(args.c);
+
+        let res = match (slot1, slot2) {
+            (Int(val1),   Int(val2))   => Bool(val1 > val2),
+            (Float(val1), Float(val2)) => Bool(val1 > val2),
+            (Int(val1),   Float(val2)) => Bool(val1 as f64 > val2),
+            (Float(val1), Int(val2))   => Bool(val1 > val2 as f64),
+            _ => fail!("Invalid operand types for ISLT")
+        };
+
+        vm.slots[args.a] = match res { true => false, false => true };
+        vm.fetch_next()
+    },*/
 
     vm::ISGE as OpABC => {
         let slot1 = vm.slots.load(args.b);
@@ -275,6 +297,12 @@ execute! {
         vm.fetch_next()
     },
 
+    vm::VFNEW as OpAD => {
+        let vfunc = args.d as int;
+        vm.slots[args.a] = VFunc(vfunc as uint);
+        vm.fetch_next()
+    },
+
     // ---------------------- JUMPs ----------------------
 
     vm::JUMP as OpAD => {
@@ -289,7 +317,7 @@ execute! {
             Nil | Bool(false) => { let offset = args.d as i16 as int;
                                    vm.fetch(offset) }
             _ => vm.fetch_next()
-            
+
         }
     },
 
@@ -299,7 +327,7 @@ execute! {
         match jumpt_bool {
             Nil | Bool(false) => vm.fetch_next(),
             _ => { let offset = args.d as i16 as int;
-                   vm.fetch(offset) } 
+                   vm.fetch(offset) }
         }
     },
 
@@ -315,7 +343,7 @@ execute! {
 
         let dst_val = match src_slot {
             Bool(false) | Nil =>  Bool(true),
-            _ => Bool(false)          
+            _ => Bool(false)
         };
 
         vm.slots.store(args.a, dst_val);
@@ -356,11 +384,19 @@ execute! {
     vm::CALL as OpAD  => {
         let base = args.a as uint;
         let lit = args.d as i64;
-
+        
         vm.slots[base] = Int(lit);
+
+
         let func = match vm.slots.load(base+1) {
-            Func(func) => func,
-            ref slot => fail!("Tried to execute invalid function: {}", slot)
+            VFunc(vfunc) => {let type_int = match vm.slots.load(base+2) {
+                                Obj(val)  => val,
+                                ref slot => fail!("Stack not ready, base+2 is not of type CType: {}", slot)
+                             };
+                             let type_int = 0;
+                             vm.dd.vtable[vfunc][type_int] }
+            Func(func)   => func,
+            ref slot     => fail!("Tried to execute invalid function 2: {}", slot)
         };
 
         let old = vm.get_context();
@@ -396,6 +432,73 @@ execute! {
     vm::FUNCV as OpAD => {
         vm.fetch_next()
     },
+
+    // ---------------- Types ------------------
+
+//    OP       A       D
+//    ALLOC    dst     type
+//    ALLOC allocates the empty instance of Type D and puts a reference to into dst.
+
+    vm::ALLOC as OpAD => {
+        let index = match vm.slots.load(args.d as uint) {
+            CType(index) => index as uint,
+            _ => fail!("ALLOC Failed!")
+        };
+
+        let t = vm.data.ctype[index].clone();
+
+        vm.slots.store(args.a as uint, Obj(t.alloc()) );
+
+        vm.fetch_next()
+    },
+
+//    OP        A    B            C
+//    SETFIELD  ref  offset(lit)  var
+
+    vm::SETFIELD as OpABC => {
+        let var = vm.slots.load(args.c as uint);
+
+        let offset = args.b as uint;
+
+        let ref_index = args.a as uint;
+
+        let obj = vm.slots.load(ref_index).clone();  
+
+        let mut inside_obj = match obj {
+            Obj(sobj) =>  sobj,
+            _ => fail!("SETFIELD Failed!")
+        };
+        
+        *inside_obj.fields.get_mut(offset) = var;
+        
+        let myobj = inside_obj;
+        vm.slots.store(ref_index, Obj(myobj) );
+
+        vm.fetch_next()
+    },
+
+
+    //OP        A    B     C
+    //GETFIELD  dst  ref   offset(lit)
+    
+    vm::GETFIELD as OpABC => {
+        
+        let dst_index = args.a as uint;
+        let slot_refr = vm.slots.load(args.b as uint).clone();
+
+        let refr = match slot_refr {
+            Obj(sobj) => sobj,
+            _ => fail!("GETFIELD Failed!")
+        };
+
+        let offset = args.c as uint;
+        let dst = refr.fields[offset].clone();
+        
+        vm.slots.store(dst_index, dst);
+
+        vm.fetch_next()
+    },
+
 
     // --------------- Run-Time Behavior ------------
 

@@ -1,17 +1,16 @@
 use std::default::Default;
 use std::collections::HashMap;
 
-
 use fetch::Fetch;
 use decode::Decode;
 use execute::Execute;
 
-
+#[deriving(Clone)]
 pub struct Instr(pub u32);
 
-#[deriving(Show, PartialEq, FromPrimitive, Decodable)]
+#[deriving(Show, PartialEq, FromPrimitive, Decodable, Clone)]
 pub enum OpCode {
-    CSTR, CKEY, CINT, CSHORT, CFLOAT, CBOOL, CNIL,
+    CSTR, CKEY, CINT, CSHORT, CFLOAT, CBOOL, CNIL,CTYPE,
     NSSETS, NSGETS,
     ADDVV, SUBVV, MULVV, DIVVV, MODVV, POWVV,
     ISLT, ISGE, ISLE, ISGT, ISEQ, ISNEQ,
@@ -19,11 +18,12 @@ pub enum OpCode {
     JUMP, JUMPF, JUMPT,
     CALL, RET,
     APPLY,
-    FNEW,
+    FNEW, VFNEW,
     DROP, UCLO,
     SETFREEVAR, GETFREEVAR,
     LOOP, BULKMOV,
     NEWARRAY, GETARRAY, SETARRAY,
+    ALLOC, SETFIELD, GETFIELD,
     FUNCF, FUNCV,
     EXIT
 }
@@ -44,6 +44,9 @@ pub enum Slot {
     Str(String),
     Key(Keyword),
     Func(uint),
+    VFunc(uint),
+    Obj(CljObject),
+    CType(uint)
 }
 
 type CFunc  = Vec<Instr>;
@@ -51,6 +54,10 @@ type CInt   = Vec<i64>;
 type CFloat = Vec<f64>;
 type CStr   = Vec<String>;
 type CKey   = Vec<Keyword>;
+type VTable = HashMap<uint,HashMap<uint,uint>>;
+type Types  = Vec<CljType>;
+type Fields = Vec<CljField>;
+type RawSlots = Vec<Slot>;
 
 pub type InstrPtr = uint;
 pub type FuncPtr = uint;
@@ -60,7 +67,34 @@ pub struct Data {
     pub cint   : CInt,
     pub cfloat : CFloat,
     pub cstr   : CStr,
-    pub ckey   : CKey
+    pub ckey   : CKey,
+    pub ctype  : Types
+}
+
+#[deriving(Decodable, Show, Clone)]
+pub struct CljType {
+    name:String,
+    nr:uint,
+    size:uint,
+    fields:Fields
+}
+
+#[deriving(Show, Clone)]
+struct CljObject {
+    pub cljtype:uint,
+    pub fields:RawSlots
+}
+
+#[deriving(Decodable, Show, Clone)]
+pub struct CljField {
+    pub name:String,
+    pub offset:uint,
+    pub mutable:bool 
+}
+
+#[deriving(Show)]
+pub struct DispatchData {
+    pub vtable : VTable
 }
 
 pub struct Code {
@@ -85,11 +119,23 @@ pub struct Vm {
     pub slots : Slots,
     pub data  : Data,
     pub code  : Code,
-    pub symbol_table : HashMap<String
-, Slot>
+    pub dd    : DispatchData,
+    pub symbol_table : HashMap<String, Slot>
 }
 
 static VM_MAX_SLOTS : uint = 64000u;
+
+impl CljType {
+    pub fn alloc(&self) -> CljObject {
+
+        let mut obj = CljObject { cljtype: self.nr, fields: vec![] };
+
+        for n in range(0, self.size) {
+            obj.fields.push(Nil);
+        }
+        obj
+    }
+}
 
 impl Slots {
     pub fn new() -> Slots {
@@ -101,13 +147,14 @@ impl Slots {
 }
 
 impl Vm {
-    pub fn new(data: Data, code: Code) -> Vm
+    pub fn new(data: Data, code: Code, dd : DispatchData) -> Vm
     {
         Vm {
             stack : vec![],
             slots : Slots::new(),
             code  : code,
             data  : data,
+            dd    : dd,
             symbol_table : HashMap::new()
         }
     }
@@ -118,7 +165,7 @@ impl Vm {
         while instr.decode() != EXIT {
             let next = instr.execute(self);
             println!("{}: {}", instr, self.slots.slot[..10]);
-
+            
             instr = next;
         }
     }
@@ -172,17 +219,19 @@ impl OpCode {
             ISLT|ISGE|ISLE|ISGT|ISEQ|ISNEQ|
             APPLY|
             SETFREEVAR|GETFREEVAR|
+            GETFIELD|SETFIELD|
             LOOP|BULKMOV|
             NEWARRAY|GETARRAY|SETARRAY
                 => TyABC,
-            CSTR|CKEY|CINT|CFLOAT|CSHORT|CBOOL|CNIL|
+            CSTR|CKEY|CINT|CFLOAT|CSHORT|CBOOL|CNIL|CTYPE|
             NSSETS|NSGETS|
             MOV|NOT|NEG|
             JUMP|JUMPF|JUMPT|
             CALL|RET|
-            FNEW|
+            FNEW| VFNEW|
             DROP|UCLO|
             FUNCF|FUNCV|
+            ALLOC|
             EXIT
                 => TyAD,
         }

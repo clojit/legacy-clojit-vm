@@ -5,6 +5,7 @@
 extern crate serialize;
 #[phase(plugin, link)] extern crate log;
 
+
 use std::io;
 use std::os;
 
@@ -12,6 +13,8 @@ use serialize::{json, Decoder, Decodable};
 
 use vm::Vm;
 use vm::Data;
+use vm::CljType;
+use vm::DispatchData;
 use vm::Code;
 use vm::Keyword;
 use vm::Instr;
@@ -19,13 +22,16 @@ use vm::OpCode;
 
 use decode::ToInstr;
 
+use std::collections::HashMap;
+
 mod vm;
 mod diag;
 mod decode;
 mod fetch;
 mod execute;
 
-#[deriving(Decodable)]
+
+#[deriving(Decodable, Show, Clone)]
 struct JsonInstr {
     op: OpCode,
     a: Option<u8>,
@@ -35,13 +41,15 @@ struct JsonInstr {
 }
 
 #[allow(non_snake_case)]
-#[deriving(Decodable)]
+#[deriving(Decodable, Show, Clone)]
 struct JsonBytecode {
     bytecode  : Vec<Instr>,
     CINT   : Vec<i64>,
     CFLOAT : Vec<f64>,
     CSTR   : Vec<String>,
-    CKEY   : Vec<Keyword>
+    CKEY   : Vec<Keyword>,
+    vtable : HashMap<uint,HashMap<uint, uint>>,
+    types  : Vec<CljType>
 }
 
 impl<D: Decoder<E>, E> Decodable<D, E> for Instr {
@@ -67,11 +75,12 @@ impl<D: Decoder<E>, E> Decodable<D, E> for Instr {
     }
 }
 
-fn parse_json(path: &Path) -> Result<(Data, Code), json::DecoderError> {
+fn parse_json(path: &Path) -> Result<(Data, Code, DispatchData), json::DecoderError> {
+    
     let mut reader = match io::File::open(path) {
         Ok(reader) => reader,
         Err(err) => return Err(json::ParseError(
-                        json::IoError(err.kind, err.desc)))
+                               json::IoError(err.kind, err.desc)))
     };
 
     let mut decoder = match json::from_reader(&mut reader) {
@@ -85,7 +94,12 @@ fn parse_json(path: &Path) -> Result<(Data, Code), json::DecoderError> {
         cint   : bc.CINT,
         cfloat : bc.CFLOAT,
         cstr   : bc.CSTR,
-        ckey   : bc.CKEY
+        ckey   : bc.CKEY,
+        ctype  : bc.types
+    };
+
+    let dispatchdata  = DispatchData {
+        vtable : bc.vtable
     };
 
     let code = Code {
@@ -93,7 +107,7 @@ fn parse_json(path: &Path) -> Result<(Data, Code), json::DecoderError> {
         func : bc.bytecode
     };
 
-    Ok((data, code))
+    Ok((data, code, dispatchdata))
 }
 
 
@@ -108,7 +122,7 @@ fn main() {
     let path = Path::new(args[1].as_slice());
 
     match parse_json(&path) {
-        Ok((data, code)) => Vm::new(data, code).start(),
+        Ok((data, code, dispatchdata)) => Vm::new(data, code, dispatchdata).start(),
         Err(err) => println!("{}", err)
     };
 }
