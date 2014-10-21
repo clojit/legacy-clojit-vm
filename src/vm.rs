@@ -19,8 +19,8 @@ pub enum OpCode {
     CALL, RET,
     APPLY,
     FNEW, VFNEW,
-    DROP, UCLO,
-    SETFREEVAR, GETFREEVAR,
+    DROP, TRANC, UCLO,
+    GETFREEVAR,
     LOOP, BULKMOV,
     NEWARRAY, GETARRAY, SETARRAY,
     ALLOC, SETFIELD, GETFIELD,
@@ -46,7 +46,8 @@ pub enum Slot {
     Func(uint),
     VFunc(uint),
     Obj(CljObject),
-    CType(uint)
+    CType(uint),
+    SCC(Closure),
 }
 
 type CFunc  = Vec<Instr>;
@@ -69,6 +70,12 @@ pub struct Data {
     pub cstr   : CStr,
     pub ckey   : CKey,
     pub ctype  : Types
+}
+
+#[deriving(Show, Clone)]
+pub struct Closure {
+    pub func    : uint,
+    pub freevar : Vec<Slot>
 }
 
 #[deriving(Decodable, Show, Clone)]
@@ -102,6 +109,7 @@ pub struct Code {
     pub func : CFunc,
 }
 
+#[deriving(Show, Clone)]
 pub struct Slots {
     pub base : BasePtr,
     pub slot : Vec<Slot>,
@@ -218,7 +226,6 @@ impl OpCode {
             ADDVV|SUBVV|MULVV|DIVVV|MODVV|POWVV|
             ISLT|ISGE|ISLE|ISGT|ISEQ|ISNEQ|
             APPLY|
-            SETFREEVAR|GETFREEVAR|
             GETFIELD|SETFIELD|
             LOOP|BULKMOV|
             NEWARRAY|GETARRAY|SETARRAY
@@ -229,8 +236,9 @@ impl OpCode {
             JUMP|JUMPF|JUMPT|
             CALL|RET|
             FNEW| VFNEW|
-            DROP|UCLO|
+            DROP|TRANC|UCLO|
             FUNCF|FUNCV|
+            GETFREEVAR|
             ALLOC|
             EXIT
                 => TyAD,

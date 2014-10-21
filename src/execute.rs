@@ -1,7 +1,8 @@
 use vm;
 use vm::Vm;
 use vm::CljType;
-use vm::{Nil, Int, Float, Bool, Str, Key, Func, VFunc, Obj, CType};
+use vm::Closure;
+use vm::{Nil, Int, Float, Bool, Str, Key, Func, VFunc, Obj, CType, SCC};
 use vm::Instr;
 use vm::Context;
 
@@ -387,15 +388,16 @@ execute! {
         
         vm.slots[base] = Int(lit);
 
-
         let func = match vm.slots.load(base+1) {
             VFunc(vfunc) => {let type_int = match vm.slots.load(base+2) {
                                 Obj(val)  => val,
-                                ref slot => fail!("Stack not ready, base+2 is not of type CType: {}", slot)
+                                ref slot => fail!("Stack not ready, base+2 
+                                                   is not of type CType: {}", slot)
                              };
                              let type_int = 0;
                              vm.dd.vtable[vfunc][type_int] }
             Func(func)   => func,
+            SCC(clos)    => clos.func,
             ref slot     => fail!("Tried to execute invalid function 2: {}", slot)
         };
 
@@ -495,6 +497,50 @@ execute! {
         let dst = refr.fields[offset].clone();
         
         vm.slots.store(dst_index, dst);
+
+        vm.fetch_next()
+    },
+
+    // -------------------- Closure -------------------
+
+    vm::UCLO as OpAD => {
+        
+        let start_slot = args.a as uint;
+        let end_slot = args.d as uint;
+        let fnew_slot_index = end_slot + 1;
+
+        let fnew_slot = match vm.slots.load(fnew_slot_index) {
+                            Func(func) => func,
+                            _ => fail!("Not Func type on FNEW slot")                        
+                        };
+
+        let freevar = vm.slots.slot[start_slot+1..end_slot+2].to_vec();
+        
+
+        vm.slots.store(fnew_slot_index, SCC(Closure{func:fnew_slot,
+                                                    freevar:freevar}));
+       
+        vm.fetch_next()
+    },
+
+    //    OP      A       D
+    //GETFREEVAR  dst     idx
+
+    vm::GETFREEVAR as OpAD => {
+        
+        let idx = args.d as uint;
+        let dst_idx = args.a as uint;
+        
+        //println!("->->->->-> vm.slots.base + 1: {} <-<-<-<-<-", vm.slots.slot[1]);
+
+        let freevar = match vm.slots.slot.get_mut(1).clone()  {
+                        SCC(clos) => clos.freevar[idx].clone(),
+                        _ => fail!("Not Closure in Slot") 
+                      };
+
+        vm.slots.store(dst_idx, freevar);
+
+        //println!("vm.slots.load args.a: {}", vm.slots.load(dst_idx) );
 
         vm.fetch_next()
     },
