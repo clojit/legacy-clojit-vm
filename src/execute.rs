@@ -557,6 +557,16 @@ execute! {
         vm.fetch_next()
     },
 
+    // Currently very very slow
+    vm::TRANC as OpAD => {
+
+        for i in range(args.d as uint, vm.slots.slot.len() ) {
+            vm.slots.store(i, Nil);
+        }
+
+        vm.fetch_next()
+    },
+
 
     _ as Instr => {
         error!("skipping instruction: {}", args);
