@@ -205,6 +205,21 @@ impl<I:ToPrimitive> Index<I, Slot> for Slots {
     }
 }
 
+impl Slice<uint, [Slot]> for Slots {
+    fn as_slice_<'a>(&'a self) -> &'a [Slot] {
+        self.slot[self.base..]
+    }
+    fn slice_from_or_fail<'a>(&'a self, from: &uint) -> &'a [Slot] {
+        self.slot[self.base + *from..]
+    }
+    fn slice_to_or_fail<'a>(&'a self, to: &uint) -> &'a [Slot] {
+        self.slot[self.base.. self.base+*to]
+    }
+    fn slice_or_fail<'a>(&'a self, from: &uint, to: &uint) -> &'a [Slot] {
+        self.slot[self.base+*from..self.base+*to]
+    }
+}
+
 impl Slots {
     pub fn load<I:ToPrimitive>(&self, index: I) -> Slot {
         self[index].clone()

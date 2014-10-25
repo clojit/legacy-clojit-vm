@@ -293,8 +293,18 @@ execute! {
     // --------- Closures and Free Variables ----------
 
     vm::FNEW as OpAD => {
-        let func = args.d as int;
-        vm.slots[args.a] = Func(func as uint);
+
+        let func_slot = vm.slots.load(1u);
+  
+        let new_fnew = match func_slot {
+                        SCC(clos) => {SCC(Closure{func:args.d as uint,
+                                                  freevar:clos.freevar.clone()})
+                                     }
+                        _ =>  Func(args.d as uint),
+                      };
+
+        vm.slots[args.a] = new_fnew;
+
         vm.fetch_next()
     },
 
@@ -416,12 +426,15 @@ execute! {
     vm::RET as OpAD => {
         vm.slots[0u] = vm.slots.load(args.a);
         
-        for i in range(2, args.a as int) {
+        //should use tranc
+        for i in range(2, args.a as int + 10) {
             vm.slots.store(i, Nil);
         }
+    
 
         let caller = vm.stack.pop().unwrap();
         vm.set_context(caller);
+
         vm.fetch_next()
     },
 
@@ -509,17 +522,19 @@ execute! {
         let end_slot = args.d as uint;
         let fnew_slot_index = end_slot + 1;
 
-        let fnew_slot = match vm.slots.load(fnew_slot_index) {
-                            Func(func) => func,
-                            _ => fail!("Not Func type on FNEW slot")                        
-                        };
+        let new_freevars = vm.slots[start_slot..end_slot+1].to_vec();
 
-        let freevar = vm.slots.slot[start_slot+1..end_slot+2].to_vec();
-        
-
-        vm.slots.store(fnew_slot_index, SCC(Closure{func:fnew_slot,
-                                                    freevar:freevar}));
-       
+        match vm.slots.load(fnew_slot_index) {
+            Func(func) => {vm.slots.store(fnew_slot_index, SCC(Closure{func:func,
+                                                                       freevar:new_freevars}));
+                          }
+            SCC(clos) =>  {let mut new_clos = clos.clone();
+                           new_clos.freevar.push_all(vm.slots[start_slot..end_slot+1]);
+                           vm.slots.store(fnew_slot_index, SCC( new_clos.clone()));
+                          }
+            _ => fail!("Not Func type on FNEW slot")             
+        };
+      
         vm.fetch_next()
     },
 
@@ -527,20 +542,17 @@ execute! {
     //GETFREEVAR  dst     idx
 
     vm::GETFREEVAR as OpAD => {
-        
+
         let idx = args.d as uint;
         let dst_idx = args.a as uint;
-        
-        //println!("->->->->-> vm.slots.base + 1: {} <-<-<-<-<-", vm.slots.slot[1]);
 
-        let freevar = match vm.slots.slot.get_mut(1).clone()  {
+        let freevar = match vm.slots.load(1u) {
                         SCC(clos) => clos.freevar[idx].clone(),
                         _ => fail!("Not Closure in Slot") 
                       };
 
-        vm.slots.store(dst_idx, freevar);
 
-        //println!("vm.slots.load args.a: {}", vm.slots.load(dst_idx) );
+        vm.slots.store(dst_idx, freevar);
 
         vm.fetch_next()
     },

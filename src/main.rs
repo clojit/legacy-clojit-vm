@@ -1,6 +1,6 @@
 #![feature(macro_rules)]
 #![feature(phase)]
-//#![feature(struct_variant)]
+#![feature(slicing_syntax)]
 
 extern crate serialize;
 #[phase(plugin, link)] extern crate log;
