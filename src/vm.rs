@@ -174,6 +174,9 @@ impl Vm {
     pub fn start(&mut self) {
         let mut instr = self.fetch(0);
 
+        self.symbol_table.insert("println".to_string(),
+                                  Builtin(println));
+
         while instr.decode() != EXIT {
             let next = instr.execute(self);
             //println!("{}: {}", instr, self.slots.slot[..10]);
