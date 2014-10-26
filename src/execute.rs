@@ -1,8 +1,7 @@
 use vm;
 use vm::Vm;
-use vm::CljType;
 use vm::Closure;
-use vm::{Nil, Int, Float, Bool, Str, Key, Func, VFunc, Obj, CType, SCC};
+use vm::{Nil, Int, Float, Bool, Str, Key, Func, VFunc, Obj, CType, SCC, Builtin};
 use vm::Instr;
 use vm::Context;
 
@@ -400,14 +399,14 @@ execute! {
 
         let func = match vm.slots.load(base+1) {
             VFunc(vfunc) => {let type_int = match vm.slots.load(base+2) {
-                                Obj(val)  => val,
+                                Obj(val)  => val.cljtype,
                                 ref slot => fail!("Stack not ready, base+2 
                                                    is not of type CType: {}", slot)
                              };
-                             let type_int = 0;
                              vm.dd.vtable[vfunc][type_int] }
             Func(func)   => func,
             SCC(clos)    => clos.func,
+            Builtin(_)   => -1,
             ref slot     => fail!("Tried to execute invalid function 2: {}", slot)
         };
 
@@ -420,7 +419,21 @@ execute! {
             ip : func,
         });
 
-        vm.fetch(0)
+ 
+        match vm.slots.load(base+1) {
+                Builtin(f) => { f(vm);
+
+                                for i in range(2, args.a as int + 10) {
+                                    vm.slots.store(i, Nil);
+                                }
+
+                                let caller = vm.stack.pop().unwrap();
+                                vm.set_context(caller);
+
+                                vm.fetch_next()
+                               }
+                _ => vm.fetch(0)
+        }
     },
 
     vm::RET as OpAD => {

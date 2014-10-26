@@ -4,6 +4,9 @@ use std::collections::HashMap;
 use fetch::Fetch;
 use decode::Decode;
 use execute::Execute;
+use builtin::println;
+
+use std::fmt;
 
 #[deriving(Clone)]
 pub struct Instr(pub u32);
@@ -35,7 +38,7 @@ pub enum InstrType {
 
 pub type Keyword = String;
 
-#[deriving(Show, Clone)]
+#[deriving(Clone)]
 pub enum Slot {
     Nil,
     Int(i64),
@@ -48,6 +51,7 @@ pub enum Slot {
     Obj(CljObject),
     CType(uint),
     SCC(Closure),
+    Builtin(fn (&mut Vm)),
 }
 
 type CFunc  = Vec<Instr>;
@@ -138,7 +142,7 @@ impl CljType {
 
         let mut obj = CljObject { cljtype: self.nr, fields: vec![] };
 
-        for n in range(0, self.size) {
+        for _ in range(0, self.size) {
             obj.fields.push(Nil);
         }
         obj
@@ -172,7 +176,7 @@ impl Vm {
 
         while instr.decode() != EXIT {
             let next = instr.execute(self);
-            println!("{}: {}", instr, self.slots.slot[..10]);
+            //println!("{}: {}", instr, self.slots.slot[..10]);
             
             instr = next;
         }
@@ -257,6 +261,25 @@ impl OpCode {
             ALLOC|
             EXIT
                 => TyAD,
+        }
+    }
+}
+
+impl fmt::Show for Slot {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Nil => write!(f, "Nil"),
+            Builtin(_) => write!(f, ""),
+            Int(ref x) => x.fmt(f),
+            Float(ref x) => x.fmt(f),
+            Bool(ref x) => x.fmt(f),
+            Str(ref x) =>  x.fmt(f),
+            Key(ref x) =>  x.fmt(f),
+            Func(ref x) =>  x.fmt(f),
+            VFunc(ref x) =>  x.fmt(f),            
+            Obj(ref x) =>  x.fmt(f),
+            CType(ref x) =>  x.fmt(f),
+            SCC(ref x) =>  x.fmt(f)
         }
     }
 }

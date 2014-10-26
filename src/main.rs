@@ -29,6 +29,7 @@ mod diag;
 mod decode;
 mod fetch;
 mod execute;
+mod builtin;
 
 
 #[deriving(Decodable, Show, Clone)]
