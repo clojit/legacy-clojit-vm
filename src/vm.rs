@@ -54,6 +54,12 @@ pub enum Slot {
     Builtin(fn (&mut Vm)),
 }
 
+#[deriving(Clone)]
+pub struct TopLevelBinding {
+    pub val : Slot,
+    pub dynamic : bool
+}
+
 type CFunc  = Vec<Instr>;
 type CInt   = Vec<i64>;
 type CFloat = Vec<f64>;
@@ -132,7 +138,7 @@ pub struct Vm {
     pub data  : Data,
     pub code  : Code,
     pub dd    : DispatchData,
-    pub symbol_table : HashMap<String, Slot>
+    pub symbol_table : HashMap<String, TopLevelBinding>
 }
 
 static VM_MAX_SLOTS : uint = 64000u;
@@ -175,7 +181,11 @@ impl Vm {
         let mut instr = self.fetch(0);
 
         self.symbol_table.insert("println".to_string(),
-                                  Builtin(println));
+                                  TopLevelBinding {
+                                      val: Builtin(println),
+                                      dynamic: false
+                                  }
+                                  );
 
         while instr.decode() != EXIT {
             let next = instr.execute(self);
@@ -248,12 +258,13 @@ impl OpCode {
             ADDVV|SUBVV|MULVV|DIVVV|MODVV|POWVV|
             ISLT|ISGE|ISLE|ISGT|ISEQ|ISNEQ|
             APPLY|
+            NSSETS|
             GETFIELD|SETFIELD|
             LOOP|BULKMOV|
             NEWARRAY|GETARRAY|SETARRAY
                 => TyABC,
             CSTR|CKEY|CINT|CFLOAT|CSHORT|CBOOL|CNIL|CTYPE|
-            NSSETS|NSGETS|
+            NSGETS|
             MOV|NOT|NEG|
             JUMP|JUMPF|JUMPT|
             CALL|RET|

@@ -4,6 +4,7 @@ use vm::Closure;
 use vm::{Nil, Int, Float, Bool, Str, Key, Func, VFunc, Obj, CType, SCC, Builtin};
 use vm::Instr;
 use vm::Context;
+use vm::TopLevelBinding;
 
 use fetch::Fetch;
 use decode::Decode;
@@ -80,10 +81,17 @@ execute! {
 
     // -------------------- Global Table Ops ------------------
 
-    vm::NSSETS as OpAD => {
+    vm::NSSETS as OpABC => {
 
-        vm.symbol_table.insert(vm.data.cstr[args.d as uint].clone(),
-                               vm.slots.load(args.a) );
+        vm.symbol_table.insert(vm.data.cstr[args.b as uint].clone(),
+                                 TopLevelBinding {
+                                    val:vm.slots.load(args.a),
+                                    dynamic: match args.c {
+                                                0 => false,
+                                                1 => true
+                                             } 
+                                 }
+                               );
 
         vm.fetch_next()
     },
@@ -93,7 +101,7 @@ execute! {
         let symbol = vm.data.cstr[args.d as uint].clone();
 
         let value = match vm.symbol_table.find(&symbol) {
-            Some(slot) => slot.clone(),
+            Some(toplvlbinging) => toplvlbinging.val.clone(),
             None => fail!("Symbol not found in symbol_table")
         };
 
