@@ -86,9 +86,9 @@ execute! {
         vm.symbol_table.insert(vm.data.cstr[args.b as uint].clone(),
                                  TopLevelBinding {
                                     val:vm.slots.load(args.a),
-                                    dynamic: match args.c {
-                                                0 => false,
-                                                1 => true
+                                    dynamic: match args.c as uint {
+                                                1u => true,
+                                                _ => false
                                              } 
                                  }
                                );
