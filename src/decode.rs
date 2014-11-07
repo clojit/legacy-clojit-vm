@@ -66,7 +66,7 @@ impl Decode for Instr {
         let opcode = from_instr::<OpABC>(&self).op;
         match FromPrimitive::from_u8(opcode) {
             Some(op) => op,
-            None => fail!("invalid opcode: {}", opcode)
+            None => panic!("invalid opcode: {}", opcode)
         }
     }
 }

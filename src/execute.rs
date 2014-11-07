@@ -102,7 +102,7 @@ execute! {
 
         let value = match vm.symbol_table.find(&symbol) {
             Some(toplvlbinging) => toplvlbinging.val.clone(),
-            None => fail!("Symbol not found in symbol_table")
+            None => panic!("Symbol not found in symbol_table")
         };
 
         vm.slots[args.a] = value;
@@ -121,7 +121,7 @@ execute! {
             (Float(val1), Float(val2)) => Float(val1 + val2),
             (Int(val1),   Float(val2)) => Float(val1 as f64 + val2),
             (Float(val1), Int(val2))   => Float(val1 + val2 as f64),
-            _ => fail!("Invalid operand types for ADDVV")
+            _ => panic!("Invalid operand types for ADDVV")
         };
 
         vm.slots[args.a] = res;
@@ -138,7 +138,7 @@ execute! {
             (Float(val1), Float(val2)) => Float(val1 - val2),
             (Int(val1),   Float(val2)) => Float(val1 as f64 - val2),
             (Float(val1), Int(val2))   => Float(val1 - val2 as f64),
-            _ => fail!("Invalid operand types for SUBVV")
+            _ => panic!("Invalid operand types for SUBVV")
         };
 
         vm.slots[args.a] = res;
@@ -155,7 +155,7 @@ execute! {
             (Float(val1), Float(val2)) => Float(val1 * val2),
             (Int(val1),   Float(val2)) => Float(val1 as f64 * val2),
             (Float(val1), Int(val2))   => Float(val1 * val2 as f64),
-            _ => fail!("Invalid operand types for MULVV")
+            _ => panic!("Invalid operand types for MULVV")
         };
 
         vm.slots[args.a] = res;
@@ -172,7 +172,7 @@ execute! {
             (Float(val1), Float(val2)) => Float(val1 / val2),
             (Int(val1),   Float(val2)) => Float(val1 as f64 / val2),
             (Float(val1), Int(val2))   => Float(val1 / val2 as f64),
-            _ => fail!("Invalid operand types for DIVVV")
+            _ => panic!("Invalid operand types for DIVVV")
         };
 
         vm.slots[args.a] = res;
@@ -189,7 +189,7 @@ execute! {
             (Float(val1), Float(val2)) => Float(val1 % val2),
             (Int(val1),   Float(val2)) => Float(val1 as f64 % val2),
             (Float(val1), Int(val2))   => Float(val1 % val2 as f64),
-            _ => fail!("Invalid operand types for MOVVV")
+            _ => panic!("Invalid operand types for MOVVV")
         };
 
         vm.slots[args.a] = res;
@@ -209,7 +209,7 @@ execute! {
             (Float(val1), Float(val2)) => Bool(val1 == val2),
             (Int(val1),   Float(val2)) => Bool(val1 as f64 == val2),
             (Float(val1), Int(val2))   => Bool(val1 == val2 as f64),
-            _ => fail!("Invalid operand types for ISEQ")
+            _ => panic!("Invalid operand types for ISEQ")
         };
 
         vm.slots[args.a] = res;
@@ -225,7 +225,7 @@ execute! {
             (Float(val1), Float(val2)) => Bool(val1 != val2),
             (Int(val1),   Float(val2)) => Bool(val1 as f64 != val2),
             (Float(val1), Int(val2))   => Bool(val1 != val2 as f64),
-            _ => fail!("Invalid operand types for ISEQ")
+            _ => panic!("Invalid operand types for ISEQ")
         };
 
         vm.slots[args.a] = res;
@@ -242,7 +242,7 @@ execute! {
             (Float(val1), Float(val2)) => Bool(val1 > val2),
             (Int(val1),   Float(val2)) => Bool(val1 as f64 > val2),
             (Float(val1), Int(val2))   => Bool(val1 > val2 as f64),
-            _ => fail!("Invalid operand types for ISLT")
+            _ => panic!("Invalid operand types for ISLT")
         };
 
         vm.slots[args.a] = match res { true => false, false => true };
@@ -258,7 +258,7 @@ execute! {
             (Float(val1), Float(val2)) => Bool(val1 >= val2),
             (Int(val1),   Float(val2)) => Bool(val1 as f64 >= val2),
             (Float(val1), Int(val2))   => Bool(val1 >= val2 as f64),
-            _ => fail!("Invalid operand types for ISGE")
+            _ => panic!("Invalid operand types for ISGE")
         };
 
         vm.slots[args.a] = res;
@@ -274,7 +274,7 @@ execute! {
             (Float(val1), Float(val2)) => Bool(val1 <= val2),
             (Int(val1),   Float(val2)) => Bool(val1 as f64 <= val2),
             (Float(val1), Int(val2))   => Bool(val1 <= val2 as f64),
-            _ => fail!("Invalid operand types for ISLE")
+            _ => panic!("Invalid operand types for ISLE")
         };
 
         vm.slots[args.a] = res;
@@ -290,7 +290,7 @@ execute! {
             (Float(val1), Float(val2)) => Bool(val1 > val2),
             (Int(val1),   Float(val2)) => Bool(val1 as f64 > val2),
             (Float(val1), Int(val2))   => Bool(val1 > val2 as f64),
-            _ => fail!("Invalid operand types for ISGT")
+            _ => panic!("Invalid operand types for ISGT")
         };
 
         vm.slots[args.a] = res;
@@ -374,7 +374,7 @@ execute! {
         let dst_val = match src_slot {
             Int(val)   => Int(- val),
             Float(val) => Float(- val),
-            _ => fail!("Tried to execute invalid bytecode, NOT")
+            _ => panic!("Tried to execute invalid bytecode, NOT")
         };
         vm.slots.store(args.a, dst_val);
         vm.fetch_next()
@@ -408,14 +408,14 @@ execute! {
         let func = match vm.slots.load(base+1) {
             VFunc(vfunc) => {let type_int = match vm.slots.load(base+2) {
                                 Obj(val)  => val.cljtype,
-                                ref slot => fail!("Stack not ready, base+2 
+                                ref slot => panic!("Stack not ready, base+2 
                                                    is not of type CType: {}", slot)
                              };
                              vm.dd.vtable[vfunc][type_int] }
             Func(func)   => func,
             SCC(clos)    => clos.func,
             Builtin(_)   => -1,
-            ref slot     => fail!("Tried to execute invalid function 2: {}", slot)
+            ref slot     => panic!("Tried to execute invalid function 2: {}", slot)
         };
 
         let old = vm.get_context();
@@ -478,7 +478,7 @@ execute! {
     vm::ALLOC as OpAD => {
         let index = match vm.slots.load(args.d as uint) {
             CType(index) => index as uint,
-            _ => fail!("ALLOC Failed!")
+            _ => panic!("ALLOC Failed!")
         };
 
         let t = vm.data.ctype[index].clone();
@@ -502,7 +502,7 @@ execute! {
 
         let mut inside_obj = match obj {
             Obj(sobj) =>  sobj,
-            _ => fail!("SETFIELD Failed!")
+            _ => panic!("SETFIELD Failed!")
         };
         
         *inside_obj.fields.get_mut(offset) = var;
@@ -524,7 +524,7 @@ execute! {
 
         let refr = match slot_refr {
             Obj(sobj) => sobj,
-            _ => fail!("GETFIELD Failed!")
+            _ => panic!("GETFIELD Failed!")
         };
 
         let offset = args.c as uint;
@@ -553,7 +553,7 @@ execute! {
                            new_clos.freevar.push_all(vm.slots[start_slot..end_slot+1]);
                            vm.slots.store(fnew_slot_index, SCC( new_clos.clone()));
                           }
-            _ => fail!("Not Func type on FNEW slot")             
+            _ => panic!("Not Func type on FNEW slot")             
         };
       
         vm.fetch_next()
@@ -569,7 +569,7 @@ execute! {
 
         let freevar = match vm.slots.load(1u) {
                         SCC(clos) => clos.freevar[idx].clone(),
-                        _ => fail!("Not Closure in Slot") 
+                        _ => panic!("Not Closure in Slot") 
                       };
 
 
