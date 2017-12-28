@@ -1,4 +1,4 @@
-clojit-vm
+legacy-clojit-vm
 =========
 
 A virtual machine implementation for the clojit project, written in Rust. Run
